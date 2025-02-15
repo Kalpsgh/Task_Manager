@@ -1,0 +1,128 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+import json
+import os
+from datetime import datetime
+from tkcalendar import Calendar
+
+TASK_FILE = "tasks.json"
+
+# Load tasks
+if os.path.exists(TASK_FILE):
+    with open(TASK_FILE, "r") as f:
+        tasks = json.load(f)
+else:
+    tasks = []
+
+# Save tasks
+def save_tasks():
+    with open(TASK_FILE, "w") as f:
+        json.dump(tasks, f)
+
+# Add task
+def add_task():
+    task_text = task_entry.get()
+    due_date = cal.get_date()
+    priority = priority_var.get()
+    time = time_entry.get()
+    
+    if not task_text:
+        messagebox.showerror("Error", "Task cannot be empty!")
+        return
+    
+    task_data = {"task": task_text, "completed": False, "due_date": due_date, "priority": priority, "time": time}
+    tasks.append(task_data)
+    save_tasks()
+    update_task_list()
+    task_entry.delete(0, tk.END)
+    time_entry.delete(0, tk.END)
+
+# Delete selected task
+def delete_task():
+    selected = task_list.curselection()
+    if not selected:
+        messagebox.showerror("Error", "No task selected!")
+        return
+    
+    del tasks[selected[0]]
+    save_tasks()
+    update_task_list()
+
+# Mark selected task as completed
+def complete_task():
+    selected = task_list.curselection()
+    if not selected:
+        messagebox.showerror("Error", "No task selected!")
+        return
+    
+    tasks[selected[0]]["completed"] = True
+    save_tasks()
+    update_task_list()
+
+# Update task list
+def update_task_list():
+    task_list.delete(0, tk.END)
+    for task in tasks:
+        status = "✔" if task["completed"] else "❌"
+        color = "red" if task["priority"] == "High" else "yellow" if task["priority"] == "Medium" else "green"
+        task_list.insert(tk.END, f'{status} {task["task"]} (Due: {task["due_date"]} at {task["time"]}, Priority: {task["priority"]})')
+        task_list.itemconfig(tk.END, fg=color)
+
+# Clear all tasks
+def clear_tasks():
+    if messagebox.askyesno("Confirm", "Are you sure you want to delete all tasks?"):
+        tasks.clear()
+        save_tasks()
+        update_task_list()
+
+# GUI setup
+root = tk.Tk()
+root.title("Cyberpunk Task Manager")
+root.geometry("700x550")
+root.configure(bg="#121212")
+
+frame = tk.Frame(root, bg="#121212")
+frame.pack(pady=10)
+
+task_entry = tk.Entry(frame, width=40, font=("Orbitron", 12), bg="#222", fg="#0ff", insertbackground="#0ff")
+task_entry.pack(side=tk.LEFT, padx=5)
+
+time_entry = tk.Entry(frame, width=10, font=("Orbitron", 12), bg="#222", fg="#0ff", insertbackground="#0ff")
+time_entry.pack(side=tk.LEFT, padx=5)
+
+def create_button(parent, text, command):
+    btn = tk.Button(parent, text=text, command=command, font=("Orbitron", 10), bg="#ff00ff", fg="#000", relief="flat", padx=10, pady=5, activebackground="#00ffff")
+    btn.bind("<Enter>", lambda e: btn.config(bg="#00ffff", fg="#000"))
+    btn.bind("<Leave>", lambda e: btn.config(bg="#ff00ff", fg="#000"))
+    return btn
+
+task_add_button = create_button(frame, "Add Task", add_task)
+task_add_button.pack(side=tk.LEFT, padx=5)
+
+priority_var = tk.StringVar(value="Medium")
+priority_dropdown = ttk.Combobox(frame, textvariable=priority_var, values=["High", "Medium", "Low"], font=("Orbitron", 10))
+priority_dropdown.pack(side=tk.LEFT, padx=5)
+
+cal_frame = tk.Frame(root, bg="#121212")
+cal_frame.pack(pady=5)
+
+cal = Calendar(cal_frame, selectmode="day", year=datetime.now().year, month=datetime.now().month, day=datetime.now().day, background="#222", foreground="#0ff", headersbackground="#444", headersforeground="#ff0")
+cal.pack()
+
+task_list = tk.Listbox(root, width=80, height=15, font=("Orbitron", 10), bg="#222", fg="#0ff", selectbackground="#ff00ff")
+task_list.pack(pady=10)
+
+button_frame = tk.Frame(root, bg="#121212")
+button_frame.pack()
+
+delete_button = create_button(button_frame, "Delete", delete_task)
+delete_button.grid(row=0, column=0, padx=5)
+
+complete_button = create_button(button_frame, "Complete", complete_task)
+complete_button.grid(row=0, column=1, padx=5)
+
+clear_button = create_button(button_frame, "Clear All", clear_tasks)
+clear_button.grid(row=0, column=2, padx=5)
+
+update_task_list()
+root.mainloop()

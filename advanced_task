@@ -1,0 +1,169 @@
+import sys
+import json
+import os
+from datetime import datetime
+
+# File to store tasks persistently
+TASK_FILE = "tasks.json"
+
+# Load tasks from file if it exists
+def load_tasks():
+    global tasks
+    if os.path.exists(TASK_FILE):
+        with open(TASK_FILE, "r") as f:
+            tasks = json.load(f)
+    else:
+        tasks = []
+
+# Save tasks to file
+def save_tasks():
+    with open(TASK_FILE, "w") as f:
+        json.dump(tasks, f)
+
+# Add a new task with optional date & priority
+def add_task(task, due_date=None, priority="Medium"):
+    if priority not in ["High", "Medium", "Low"]:
+        print("Invalid priority! Choose from: High, Medium, Low")
+        return
+
+    task_data = {
+        "task": task,
+        "completed": False,
+        "due_date": due_date if due_date else "No Deadline",
+        "priority": priority
+    }
+    tasks.append(task_data)
+    save_tasks()
+    print(f'Added task: {task} (Priority: {priority}, Due: {due_date})')
+
+# Delete a task
+def delete_task(task_index):
+    try:
+        removed_task = tasks.pop(task_index)
+        save_tasks()
+        print(f'Deleted task: {removed_task["task"]}')
+    except IndexError:
+        print("Invalid task number")
+
+# View tasks with priority & due date
+def view_tasks():
+    if not tasks:
+        print("No tasks available")
+    else:
+        for i, task in enumerate(tasks):
+            status = "✔ Completed" if task["completed"] else "❌ Pending"
+            print(f'{i + 1}. {task["task"]} [{status}] - Priority: {task["priority"]}, Due: {task["due_date"]}')
+
+# Mark a task as completed
+def mark_task_completed(task_index):
+    try:
+        tasks[task_index]["completed"] = True
+        save_tasks()
+        print(f'Marked task as completed: {tasks[task_index]["task"]}')
+    except IndexError:
+        print("Invalid task number")
+
+# Sort tasks by date, priority, or status
+def sort_tasks(criterion="date"):
+    if criterion == "date":
+        tasks.sort(key=lambda x: datetime.strptime(x["due_date"], "%Y-%m-%d") if x["due_date"] != "No Deadline" else datetime.max)
+    elif criterion == "priority":
+        priority_order = {"High": 1, "Medium": 2, "Low": 3}
+        tasks.sort(key=lambda x: priority_order[x["priority"]])
+    elif criterion == "status":
+        tasks.sort(key=lambda x: x["completed"])
+    else:
+        print("Invalid sort option! Use 'date', 'priority', or 'status'.")
+        return
+    save_tasks()
+    print(f"Tasks sorted by {criterion}!")
+
+# Clear all tasks
+def clear_all_tasks():
+    if input("Are you sure you want to delete all tasks? (yes/no): ").strip().lower() == "yes":
+        tasks.clear()
+        save_tasks()
+        print("All tasks deleted.")
+
+# Display available commands
+def show_help():
+    print("""
+    Available commands:
+    - add <task> <due_date YYYY-MM-DD> <priority>: Add a new task
+    - delete <task_number>: Delete a task by its number
+    - view: View all tasks
+    - complete <task_number>: Mark a task as completed
+    - sort <date/priority/status>: Sort tasks accordingly
+    - clear: Delete all tasks
+    - help: Show this help message
+    - exit: Exit the application
+    """)
+
+# Main function to handle user input
+def main():
+    print("Task Manager Application")
+    load_tasks()
+    show_help()
+
+    while True:
+        command = input("Enter command: ").strip().split()
+        if not command:
+            continue
+
+        if command[0] == "add":
+            if len(command) >= 2:
+                task_desc = " ".join(command[1:])
+                due_date = None
+                priority = "Medium"
+
+                if len(command) >= 3:
+                    due_date = command[-2]  # Second last argument as date
+                    priority = command[-1]  # Last argument as priority
+
+                    # Validate date format
+                    try:
+                        datetime.strptime(due_date, "%Y-%m-%d")
+                    except ValueError:
+                        print("Invalid date format! Use YYYY-MM-DD.")
+                        continue
+
+                add_task(task_desc, due_date, priority)
+            else:
+                print("Invalid command format. Use: add <task> <YYYY-MM-DD> <priority>")
+
+        elif command[0] == "delete":
+            if len(command) > 1 and command[1].isdigit():
+                delete_task(int(command[1]) - 1)
+            else:
+                print("Invalid command. Use: delete <task_number>")
+
+        elif command[0] == "view":
+            view_tasks()
+
+        elif command[0] == "complete":
+            if len(command) > 1 and command[1].isdigit():
+                mark_task_completed(int(command[1]) - 1)
+            else:
+                print("Invalid command. Use: complete <task_number>")
+
+        elif command[0] == "sort":
+            if len(command) > 1:
+                sort_tasks(command[1])
+            else:
+                print("Invalid command. Use: sort <date/priority/status>")
+
+        elif command[0] == "clear":
+            clear_all_tasks()
+
+        elif command[0] == "help":
+            show_help()
+
+        elif command[0] == "exit":
+            print("Exiting the application. Goodbye!")
+            sys.exit()
+
+        else:
+            print("Unknown command. Type 'help' to see available commands.")
+
+if __name__ == "__main__":
+    main()
